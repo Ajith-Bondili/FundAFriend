@@ -127,7 +127,6 @@ class DataStore {
       return this.data.users.find(user => user.id === id);
     }
 
-<<<<<<< HEAD
     // Create a new project
     createProject(input: CreateProjectInput): Project {
       const projectId = `project_${Date.now()}`;
