@@ -9,10 +9,11 @@ import { Input } from './ui/Input';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Heart, Users, DollarSign, Calendar, Search, Filter, TrendingUp, Star, Clock, CheckCircle } from 'lucide-react';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useRouter } from 'next/navigation';
 import type { Project, User, Update } from '@/lib/types';
 
 interface ProjectsOverviewProps {
-  onViewProject: (projectSlug: string) => void; // Changed from projectId to projectSlug
+  onViewProject?: (projectSlug: string) => void; // Changed from projectId to projectSlug, now optional
   onViewUpdate?: (updateId: string) => void;
   onCreateProject?: () => void; // Add optional create project handler
 }
@@ -27,6 +28,7 @@ interface ProjectWithExtras extends Project {
 
 export function ProjectsOverview({ onViewProject, onViewUpdate, onCreateProject }: ProjectsOverviewProps) {
   const { db } = useDataStore();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
 
@@ -137,7 +139,14 @@ export function ProjectsOverview({ onViewProject, onViewUpdate, onCreateProject 
             <Card 
               key={project.id} 
               className="border-0 shadow-lg bg-white/60 backdrop-blur-sm rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group"
-              onClick={() => onViewProject(project.slug)}
+              onClick={() => {
+                // Support both callback-based navigation and router navigation
+                if (onViewProject) {
+                  onViewProject(project.slug);
+                } else {
+                  router.push(`/p/${project.slug}`);
+                }
+              }}
             >
               {/* Project Image */}
               <div className="relative h-48 overflow-hidden">
@@ -236,7 +245,12 @@ export function ProjectsOverview({ onViewProject, onViewUpdate, onCreateProject 
                     className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white rounded-full flex-1"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Handle funding action
+                      // Navigate to project page for funding
+                      if (onViewProject) {
+                        onViewProject(project.slug);
+                      } else {
+                        router.push(`/p/${project.slug}`);
+                      }
                     }}
                   >
                     <Heart className="w-3 h-3 mr-1" />

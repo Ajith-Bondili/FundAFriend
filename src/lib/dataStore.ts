@@ -112,6 +112,11 @@ class DataStore {
       this.data = data;
     }
 
+    // Return all projects (for listings)
+    getAllProjects(): Project[] {
+      return this.data.projects;
+    }
+
     // Find project by slug
     getProjectBySlug(slug: string): Project | undefined {
       return this.data.projects.find(project => project.slug === slug);
@@ -122,6 +127,7 @@ class DataStore {
       return this.data.users.find(user => user.id === id);
     }
 
+<<<<<<< HEAD
     // Create a new project
     createProject(input: CreateProjectInput): Project {
       const projectId = `project_${Date.now()}`;
@@ -184,6 +190,19 @@ class DataStore {
       const contributions = this.getProjectContributions(projectId)
         .filter(contribution => contribution.status === 'completed');
       return new Set(contributions.map(c => c.supporter_id)).size;
+    }
+
+    // Count supporters for a project (alternative method from main)
+    getProjectSupportersCount(projectId: string): number {
+      return this.data.project_supporters?.filter(ps => ps.project_id === projectId).length || 0;
+    }
+
+    // Get the most recent update for a project
+    getLatestUpdate(projectId: string): Update | undefined {
+      const updates = this.data.updates
+        .filter(u => u.project_id === projectId)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      return updates[0];
     }
 
     // Generate creator dashboard data
