@@ -11,7 +11,7 @@ import { Separator } from './ui/Separator';
 import { PlusCircle, DollarSign, Users, TrendingUp, Camera, Send } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { NewProjectModal } from './ui/NewProjectModal';
-import { ProjectFormData } from '@/types';
+import { ProjectFormData } from '@/lib/types';
 
 interface CreatorDashboardProps {
   onViewUpdate: (updateId: string) => void;

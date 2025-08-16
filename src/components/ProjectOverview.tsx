@@ -8,149 +8,61 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 import { Input } from './ui/Input';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Heart, Users, DollarSign, Calendar, Search, Filter, TrendingUp, Star, Clock, CheckCircle } from 'lucide-react';
+import { useDataStore } from '@/hooks/useDataStore';
+import type { Project, User, Update } from '@/lib/types';
 
 interface ProjectsOverviewProps {
-  onViewProject: (projectId: string) => void;
-  onViewUpdate: (updateId: string) => void;
+  onViewProject: (projectSlug: string) => void; // Changed from projectId to projectSlug
+  onViewUpdate?: (updateId: string) => void;
+  onCreateProject?: () => void; // Add optional create project handler
 }
 
-// Mock projects data
-const projects = [
-  {
-    id: '1',
-    title: 'Building My First Drone',
-    creator: {
-      name: 'Jamie Rodriguez',
-      avatar: '/api/placeholder/48/48',
-      bio: 'Robotics student & maker'
-    },
-    description: 'Building a custom drone for aerial photography! Learning electronics, programming, and mechanical design.',
-    totalRaised: 450,
-    goalAmount: 800,
-    supporterCount: 12,
-    status: 'active',
-    category: 'Technology',
-    image: '/api/placeholder/400/240',
-    lastUpdate: '2025-08-15',
-    isSupported: true,
-    userContribution: 50,
-    recentUpdateTitle: 'Just ordered the flight controller!'
-  },
-  {
-    id: '2',
-    title: 'Community Garden App',
-    creator: {
-      name: 'Maria Santos',
-      avatar: '/api/placeholder/48/48',
-      bio: 'UX Designer & gardening enthusiast'
-    },
-    description: 'Designing an app to help community gardens track plants, share tips, and coordinate harvests.',
-    totalRaised: 320,
-    goalAmount: 500,
-    supporterCount: 8,
-    status: 'active',
-    category: 'Design',
-    image: '/api/placeholder/400/240',
-    lastUpdate: '2025-08-14',
-    isSupported: true,
-    userContribution: 35,
-    recentUpdateTitle: 'App design mockups ready'
-  },
-  {
-    id: '3',
-    title: 'Local Art Zine',
-    creator: {
-      name: 'Alex Kim',
-      avatar: '/api/placeholder/48/48',
-      bio: 'Artist & community organizer'
-    },
-    description: 'Creating a quarterly zine showcasing local artists and their stories in our neighborhood.',
-    totalRaised: 280,
-    goalAmount: 300,
-    supporterCount: 15,
-    status: 'completed',
-    category: 'Art',
-    image: '/api/placeholder/400/240',
-    lastUpdate: '2025-08-12',
-    isSupported: true,
-    userContribution: 40,
-    recentUpdateTitle: 'Zine is printed and ready!'
-  },
-  {
-    id: '4',
-    title: 'Indie Game Soundtrack',
-    creator: {
-      name: 'Taylor Chen',
-      avatar: '/api/placeholder/48/48',
-      bio: 'Composer & sound designer'
-    },
-    description: 'Composing an atmospheric soundtrack for an upcoming indie game about space exploration.',
-    totalRaised: 150,
-    goalAmount: 600,
-    supporterCount: 6,
-    status: 'active',
-    category: 'Music',
-    image: '/api/placeholder/400/240',
-    lastUpdate: '2025-08-13',
-    isSupported: false,
-    userContribution: 0,
-    recentUpdateTitle: 'First track preview available'
-  },
-  {
-    id: '5',
-    title: 'Smart Plant Monitor',
-    creator: {
-      name: 'Sam Thompson',
-      avatar: '/api/placeholder/48/48',
-      bio: 'Engineer & plant enthusiast'
-    },
-    description: 'Building IoT sensors to monitor soil moisture, light, and temperature for houseplants.',
-    totalRaised: 380,
-    goalAmount: 750,
-    supporterCount: 9,
-    status: 'active',
-    category: 'Technology',
-    image: '/api/placeholder/400/240',
-    lastUpdate: '2025-08-11',
-    isSupported: false,
-    userContribution: 0,
-    recentUpdateTitle: 'Sensor prototypes working!'
-  },
-  {
-    id: '6',
-    title: 'Cookbook for Busy Parents',
-    creator: {
-      name: 'Jordan Williams',
-      avatar: '/api/placeholder/48/48',
-      bio: 'Chef & parent of three'
-    },
-    description: 'Writing a cookbook with 15-minute meals that kids will actually eat and parents can make easily.',
-    totalRaised: 200,
-    goalAmount: 400,
-    supporterCount: 12,
-    status: 'active',
-    category: 'Food',
-    image: '/api/placeholder/400/240',
-    lastUpdate: '2025-08-09',
-    isSupported: false,
-    userContribution: 0,
-    recentUpdateTitle: 'Recipe testing in progress'
-  }
-];
+// Extended project interface for display purposes
+interface ProjectWithExtras extends Project {
+  creator: User;
+  progressPercentage: number;
+  supporterCount: number;
+  recentUpdate?: Update;
+}
 
-export function ProjectsOverview({ onViewProject, onViewUpdate }: ProjectsOverviewProps) {
+export function ProjectsOverview({ onViewProject, onViewUpdate, onCreateProject }: ProjectsOverviewProps) {
+  const { db } = useDataStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
 
-  const filteredProjects = projects.filter(project => {
+  // Get all projects from dataStore and enrich with creator and stats
+  const enrichedProjects: ProjectWithExtras[] = db.getAllProjects().map(project => {
+    const creator = db.getUserById(project.creator_id);
+    const supporterCount = db.getProjectSupporterCount(project.id);
+    const updates = db.getProjectUpdates(project.id);
+    const recentUpdate = updates[0]; // Most recent update
+    const progressPercentage = (project.current_funding / project.funding_goal) * 100;
+
+    return {
+      ...project,
+      creator: creator || {
+        id: 'unknown',
+        name: 'Unknown Creator',
+        email: '',
+        avatar_url: '',
+        created_at: '',
+        updated_at: ''
+      },
+      supporterCount,
+      recentUpdate,
+      progressPercentage
+    };
+  });
+
+  const filteredProjects = enrichedProjects.filter(project => {
     const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          project.creator.name.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesFilter = selectedFilter === 'all' || 
-                         (selectedFilter === 'supported' && project.isSupported) ||
-                         (selectedFilter === 'trending' && project.supporterCount > 8) ||
-                         (selectedFilter === 'new' && project.totalRaised < 200);
+                         (selectedFilter === 'active' && project.status === 'active') ||
+                         (selectedFilter === 'trending' && project.supporterCount > 5) ||
+                         (selectedFilter === 'new' && project.current_funding < 100);
     
     return matchesSearch && matchesFilter;
   });
@@ -186,7 +98,10 @@ export function ProjectsOverview({ onViewProject, onViewUpdate }: ProjectsOvervi
             <h1 className="text-3xl text-gray-900 mb-2">Discover Projects</h1>
             <p className="text-gray-600">Support creators and follow their journeys</p>
           </div>
-          <Button className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white rounded-full shadow-lg">
+          <Button 
+            onClick={onCreateProject}
+            className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white rounded-full shadow-lg"
+          >
             <Heart className="w-4 h-4 mr-2" />
             Start a Project
           </Button>
@@ -207,7 +122,7 @@ export function ProjectsOverview({ onViewProject, onViewUpdate }: ProjectsOvervi
           <Tabs value={selectedFilter} onValueChange={setSelectedFilter} className="w-auto">
             <TabsList className="bg-white/60 backdrop-blur-sm rounded-full">
               <TabsTrigger value="all" className="rounded-full">All Projects</TabsTrigger>
-              <TabsTrigger value="supported" className="rounded-full">Supported</TabsTrigger>
+              <TabsTrigger value="active" className="rounded-full">Active</TabsTrigger>
               <TabsTrigger value="trending" className="rounded-full">Trending</TabsTrigger>
               <TabsTrigger value="new" className="rounded-full">New</TabsTrigger>
             </TabsList>
@@ -218,21 +133,28 @@ export function ProjectsOverview({ onViewProject, onViewUpdate }: ProjectsOvervi
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProjects.map((project) => {
-          const progressPercentage = (project.totalRaised / project.goalAmount) * 100;
-          
           return (
             <Card 
               key={project.id} 
               className="border-0 shadow-lg bg-white/60 backdrop-blur-sm rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group"
-              onClick={() => onViewProject(project.id)}
+              onClick={() => onViewProject(project.slug)}
             >
               {/* Project Image */}
               <div className="relative h-48 overflow-hidden">
-                <ImageWithFallback 
-                  src={project.image} 
-                  alt={project.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
+                {project.cover_image_url ? (
+                  <ImageWithFallback 
+                    src={project.cover_image_url} 
+                    alt={project.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-blue-100 to-green-100 flex items-center justify-center">
+                    <div className="text-center">
+                      <Heart className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600">No image</p>
+                    </div>
+                  </div>
+                )}
                 <div className="absolute top-4 left-4 flex items-center space-x-2">
                   <Badge 
                     variant="secondary" 
@@ -241,12 +163,6 @@ export function ProjectsOverview({ onViewProject, onViewUpdate }: ProjectsOvervi
                     {getStatusIcon(project.status)}
                     <span className="ml-1 capitalize">{project.status}</span>
                   </Badge>
-                  {project.isSupported && (
-                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 rounded-full text-xs">
-                      <Star className="w-3 h-3 mr-1" />
-                      Supporting
-                    </Badge>
-                  )}
                 </div>
                 <div className="absolute top-4 right-4">
                   <Badge variant="outline" className="bg-white/80 backdrop-blur-sm rounded-full text-xs">
@@ -260,14 +176,14 @@ export function ProjectsOverview({ onViewProject, onViewUpdate }: ProjectsOvervi
                 {/* Creator Info */}
                 <div className="flex items-center space-x-3">
                   <Avatar className="w-10 h-10 border-2 border-white shadow-sm">
-                    <AvatarImage src={project.creator.avatar} />
+                    <AvatarImage src={project.creator.avatar_url} />
                     <AvatarFallback className="bg-gradient-to-r from-blue-400 to-green-400 text-white text-sm">
                       {project.creator.name.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <p className="text-sm text-gray-900">{project.creator.name}</p>
-                    <p className="text-xs text-gray-500">{project.creator.bio}</p>
+                    <p className="text-xs text-gray-500">Creator</p>
                   </div>
                 </div>
 
@@ -282,47 +198,50 @@ export function ProjectsOverview({ onViewProject, onViewUpdate }: ProjectsOvervi
                 {/* Funding Progress */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-green-600">${project.totalRaised} raised</span>
-                    <span className="text-gray-500">${project.goalAmount} goal</span>
+                    <span className="text-green-600">${project.current_funding} raised</span>
+                    <span className="text-gray-500">${project.funding_goal} goal</span>
                   </div>
-                  <Progress value={progressPercentage} className="h-2 bg-gray-100 rounded-full" />
+                  <Progress value={project.progressPercentage} className="h-2 bg-gray-100 rounded-full" />
                   <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{Math.round(progressPercentage)}% funded</span>
+                    <span>{Math.round(project.progressPercentage)}% funded</span>
                     <span>{project.supporterCount} supporters</span>
                   </div>
                 </div>
 
                 {/* Recent Update */}
-                <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-3 border border-blue-100">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <Calendar className="w-3 h-3 text-blue-600" />
-                    <span className="text-xs text-blue-700">Latest update • {project.lastUpdate}</span>
+                {project.recentUpdate ? (
+                  <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-3 border border-blue-100">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Calendar className="w-3 h-3 text-blue-600" />
+                      <span className="text-xs text-blue-700">
+                        Latest update • {new Date(project.recentUpdate.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-700">{project.recentUpdate.title}</p>
                   </div>
-                  <p className="text-xs text-gray-700">{project.recentUpdateTitle}</p>
-                </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Calendar className="w-3 h-3 text-gray-400" />
+                      <span className="text-xs text-gray-500">No updates yet</span>
+                    </div>
+                    <p className="text-xs text-gray-500">This project hasn&apos;t posted any updates</p>
+                  </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex items-center space-x-2 pt-2">
-                  {project.isSupported ? (
-                    <div className="flex items-center space-x-2 flex-1">
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 rounded-full text-xs">
-                        <DollarSign className="w-3 h-3 mr-1" />
-                        You contributed ${project.userContribution}
-                      </Badge>
-                    </div>
-                  ) : (
-                    <Button 
-                      size="sm" 
-                      className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white rounded-full flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Handle funding action
-                      }}
-                    >
-                      <Heart className="w-3 h-3 mr-1" />
-                      Fund Project
-                    </Button>
-                  )}
+                  <Button 
+                    size="sm" 
+                    className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white rounded-full flex-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Handle funding action
+                    }}
+                  >
+                    <Heart className="w-3 h-3 mr-1" />
+                    Fund Project
+                  </Button>
                   
                   <Button variant="outline" size="sm" className="rounded-full border-gray-200">
                     <Users className="w-3 h-3" />

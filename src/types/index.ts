@@ -26,9 +26,3 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 }
 
 // Add more types as needed for your specific project
-export interface ProjectFormData {
-    projectName: string;
-    shortDescription: string;
-    supportReason: string;
-    donationGoal: number;
-}

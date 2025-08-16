@@ -3,9 +3,18 @@
 import React, { useState } from "react";
 import { Button } from "./ui/Button";
 import { NewProjectModal, type ProjectFormData } from "./ui/NewProjectModal";
+import { useDataStore } from "@/hooks/useDataStore";
+import { convertProjectFormToInput } from "@/lib/projectUtils";
 
-const NewProjectExample: React.FC = () => {
+interface NewProjectExampleProps {
+  currentUserId?: string; // In a real app, this would come from auth context
+}
+
+const NewProjectExample: React.FC<NewProjectExampleProps> = ({ 
+  currentUserId = "user_001" // Default to first user for demo
+}) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { db, saveToLocalStorage } = useDataStore();
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
@@ -16,14 +25,29 @@ const NewProjectExample: React.FC = () => {
   };
 
   const handleSubmitProject = async (projectData: ProjectFormData) => {
-    // Here you would typically send the data to your backend
-    console.log("New project data:", projectData);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Show success message or redirect
-    alert(`Project "${projectData.projectName}" created successfully!`);
+    try {
+      // Convert form data to the format expected by dataStore
+      const projectInput = convertProjectFormToInput(projectData, currentUserId);
+      
+      // Create the project in the dataStore
+      const newProject = db.createProject(projectInput);
+      
+      // Save to localStorage for persistence
+      saveToLocalStorage();
+      
+      console.log("New project created:", newProject);
+      
+      // Show success message
+      alert(`Project "${projectData.projectName}" created successfully!\nProject ID: ${newProject.id}\nSlug: ${newProject.slug}`);
+      
+      // You could redirect to the project page here
+      // router.push(`/projects/${newProject.slug}`);
+      
+    } catch (error) {
+      console.error("Error creating project:", error);
+      alert("Failed to create project. Please try again.");
+      throw error; // Re-throw so the modal can handle the loading state
+    }
   };
 
   return (
@@ -41,6 +65,11 @@ const NewProjectExample: React.FC = () => {
         >
           New Project
         </Button>
+
+        <div className="mt-6 text-sm text-gray-500">
+          <p>Current Projects in Store: {db.getAllProjects().length}</p>
+          <p>Your Projects: {db.getProjectsByCreator(currentUserId).length}</p>
+        </div>
       </div>
 
       <NewProjectModal

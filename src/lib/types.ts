@@ -116,3 +116,10 @@ export interface User {
   export type CreateProjectInput = Omit<Project, 'id' | 'current_funding' | 'status' | 'created_at' | 'updated_at'>;
   export type CreateContributionInput = Omit<Contribution, 'id' | 'status' | 'created_at' | 'processed_at'>;
   export type CreateUpdateInput = Omit<Update, 'id' | 'created_at' | 'updated_at'>;
+
+export interface ProjectFormData {
+    projectName: string;
+    shortDescription: string;
+    supportReason: string;
+    donationGoal: number;
+}

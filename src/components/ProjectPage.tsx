@@ -6,71 +6,28 @@ import { Badge } from './ui/Badge';
 import { Progress } from './ui/Progress';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Heart, Users, DollarSign, Calendar, Eye, ArrowRight, ArrowLeft, Share, Star } from 'lucide-react';
+import { useDataStore } from '@/hooks/useDataStore';
+import type { Project, User, Update } from '@/lib/types';
 
 interface ProjectPageProps {
-  projectId: string | null;
-  onViewUpdate: (updateId: string) => void;
+  projectSlug: string | null; // Changed from projectId to projectSlug to match dataStore
+  onViewUpdate?: (updateId: string) => void;
   onBack: () => void;
 }
 
-// Mock project data - in real app this would be fetched based on projectId
-const projectsData = {
-  '1': {
-    id: '1',
-    title: 'Building My First Drone',
-    creator: {
-      name: 'Jamie Rodriguez',
-      avatar: '/api/placeholder/48/48',
-      bio: 'Robotics student & maker'
-    },
-    description: 'I\'m building my first custom drone for aerial photography! This project will help me learn about electronics, programming, and mechanical design while creating something amazing. I\'ve always been fascinated by flight and this is my chance to create something that can soar through the sky while capturing beautiful moments from above.',
-    totalRaised: 450,
-    goalAmount: 800,
-    supporterCount: 12,
-    category: 'Technology',
-    status: 'active',
-    isSupported: true,
-    userContribution: 50,
-    image: '/api/placeholder/600/300',
-    updates: [
-      {
-        id: '1',
-        title: 'Just ordered the flight controller!',
-        preview: 'Thanks to your support, I was able to order the main flight controller board. This is the brain of the drone!',
-        date: '2025-08-15',
-        image: '/api/placeholder/300/200',
-        fundsUsed: [
-          { item: 'Flight controller board', amount: 85 },
-          { item: 'Shipping', amount: 12 }
-        ]
-      },
-      {
-        id: '2', 
-        title: 'Frame assembly complete',
-        preview: 'The carbon fiber frame is now fully assembled and looking solid. Next step: mounting the motors!',
-        date: '2025-08-12',
-        image: '/api/placeholder/300/200',
-        fundsUsed: [
-          { item: 'Carbon fiber frame kit', amount: 120 },
-          { item: 'Assembly hardware', amount: 25 }
-        ]
-      },
-      {
-        id: '3',
-        title: 'Motor testing successful',
-        preview: 'All four motors are spinning perfectly! The power distribution is working great.',
-        date: '2025-08-10',
-        fundsUsed: [
-          { item: 'Brushless motors (4x)', amount: 160 },
-          { item: 'ESCs (4x)', amount: 80 }
-        ]
-      }
-    ]
-  }
-};
+export function ProjectPage({ projectSlug, onViewUpdate, onBack }: ProjectPageProps) {
+  const { db } = useDataStore();
+  
+  // Get project data from dataStore
+  const project: Project | undefined = projectSlug ? db.getProjectBySlug(projectSlug) : undefined;
+  const creator: User | undefined = project ? db.getUserById(project.creator_id) : undefined;
+  
+  // Get project updates and contributions from dataStore
+  const updates: Update[] = project ? db.getProjectUpdates(project.id) : [];
+  const supporterCount = project ? db.getProjectSupporterCount(project.id) : 0;
+  const progressPercentage = (project?.current_funding || 0) / (project?.funding_goal || 1) * 100;
 
-export function ProjectPage({ projectId, onViewUpdate, onBack }: ProjectPageProps) {
-  if (!projectId || !projectsData[projectId as keyof typeof projectsData]) {
+  if (!project || !creator) {
     return (
       <div className="max-w-4xl mx-auto text-center py-12">
         <p className="text-gray-600">Project not found</p>
@@ -81,9 +38,6 @@ export function ProjectPage({ projectId, onViewUpdate, onBack }: ProjectPageProp
       </div>
     );
   }
-
-  const project = projectsData[projectId as keyof typeof projectsData];
-  const progressPercentage = (project.totalRaised / project.goalAmount) * 100;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -100,10 +54,10 @@ export function ProjectPage({ projectId, onViewUpdate, onBack }: ProjectPageProp
       {/* Project Header */}
       <Card className="border-0 shadow-lg bg-white/60 backdrop-blur-sm rounded-2xl overflow-hidden">
         {/* Hero Image */}
-        {project.image && (
+        {project.cover_image_url && (
           <div className="relative h-64 overflow-hidden">
             <ImageWithFallback 
-              src={project.image} 
+              src={project.cover_image_url} 
               alt={project.title}
               className="w-full h-full object-cover"
             />
@@ -111,12 +65,9 @@ export function ProjectPage({ projectId, onViewUpdate, onBack }: ProjectPageProp
               <Badge variant="secondary" className="bg-green-100 text-green-700 rounded-full">
                 {project.category}
               </Badge>
-              {project.isSupported && (
-                <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 rounded-full">
-                  <Star className="w-3 h-3 mr-1" />
-                  Supporting
-                </Badge>
-              )}
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700 rounded-full">
+                {project.status}
+              </Badge>
             </div>
             <div className="absolute top-4 right-4">
               <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm">
@@ -130,16 +81,16 @@ export function ProjectPage({ projectId, onViewUpdate, onBack }: ProjectPageProp
         <CardHeader className="pb-4">
           <div className="flex items-start space-x-4">
             <Avatar className="w-16 h-16 border-4 border-white shadow-lg">
-              <AvatarImage src={project.creator.avatar} />
+              <AvatarImage src={creator.avatar_url} />
               <AvatarFallback className="bg-gradient-to-r from-blue-400 to-green-400 text-white">
-                {project.creator.name.split(' ').map(n => n[0]).join('')}
+                {creator.name.split(' ').map(n => n[0]).join('')}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <CardTitle className="text-2xl text-gray-900 mb-1">{project.title}</CardTitle>
-              <p className="text-gray-600 mb-2">by {project.creator.name}</p>
+              <p className="text-gray-600 mb-2">by {creator.name}</p>
               <Badge variant="secondary" className="bg-blue-100 text-blue-700 rounded-full">
-                {project.creator.bio}
+                Creator
               </Badge>
             </div>
           </div>
@@ -148,34 +99,34 @@ export function ProjectPage({ projectId, onViewUpdate, onBack }: ProjectPageProp
         <CardContent className="space-y-6">
           <p className="text-gray-700 leading-relaxed">{project.description}</p>
           
+          {/* Why Funding Helpful Section */}
+          <div className="bg-yellow-50 rounded-xl p-6 border border-yellow-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Why This Project Needs Support</h3>
+            <p className="text-gray-700">{project.why_funding_helpful}</p>
+          </div>
+          
           {/* Funding Section */}
           <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-green-100">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-6">
                 <div className="text-center">
-                  <div className="text-2xl text-green-600 mb-1">${project.totalRaised}</div>
+                  <div className="text-2xl text-green-600 mb-1">${project.current_funding}</div>
                   <div className="text-sm text-gray-600">raised</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl text-blue-600 mb-1">{project.supporterCount}</div>
+                  <div className="text-2xl text-blue-600 mb-1">{supporterCount}</div>
                   <div className="text-sm text-gray-600">supporters</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl text-gray-600 mb-1">${project.goalAmount}</div>
+                  <div className="text-2xl text-gray-600 mb-1">${project.funding_goal}</div>
                   <div className="text-sm text-gray-600">goal</div>
                 </div>
               </div>
               
               <div className="flex items-center space-x-3">
-                {project.isSupported && (
-                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 rounded-full">
-                    <DollarSign className="w-3 h-3 mr-1" />
-                    You contributed ${project.userContribution}
-                  </Badge>
-                )}
                 <Button className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white rounded-full px-8 shadow-lg">
                   <Heart className="w-4 h-4 mr-2" />
-                  {project.isSupported ? 'Support More' : 'Fund This Project'}
+                  Fund This Project
                 </Button>
               </div>
             </div>
@@ -183,6 +134,21 @@ export function ProjectPage({ projectId, onViewUpdate, onBack }: ProjectPageProp
             <Progress value={progressPercentage} className="h-3 bg-white/50 rounded-full" />
             <p className="text-sm text-gray-600 mt-2">{Math.round(progressPercentage)}% of goal reached</p>
           </div>
+
+          {/* Project Goals */}
+          {project.goals && project.goals.length > 0 && (
+            <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Project Goals</h3>
+              <ul className="space-y-2">
+                {project.goals.map((goal, index) => (
+                  <li key={index} className="flex items-start space-x-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">{goal}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -191,59 +157,68 @@ export function ProjectPage({ projectId, onViewUpdate, onBack }: ProjectPageProp
         <div className="flex items-center justify-between">
           <h2 className="text-xl text-gray-900">Project Updates</h2>
           <Badge variant="outline" className="bg-white/60 rounded-full">
-            {project.updates.length} updates
+            {updates.length} updates
           </Badge>
         </div>
         
-        <div className="space-y-4">
-          {project.updates.map((update) => (
-            <Card key={update.id} className="border-0 shadow-md bg-white/60 backdrop-blur-sm rounded-xl hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => onViewUpdate(update.id)}>
-              <CardContent className="p-6">
-                <div className="flex space-x-4">
-                  {update.image && (
-                    <div className="flex-shrink-0">
-                      <ImageWithFallback 
-                        src={update.image} 
-                        alt={update.title}
-                        className="w-24 h-24 rounded-lg object-cover border-2 border-white shadow-sm"
-                      />
-                    </div>
-                  )}
-                  
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h3 className="text-lg text-gray-900">{update.title}</h3>
-                      <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 rounded-full text-xs">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        {update.date}
-                      </Badge>
-                    </div>
+        {updates.length > 0 ? (
+          <div className="space-y-4">
+            {updates.map((update) => (
+              <Card key={update.id} className="border-0 shadow-md bg-white/60 backdrop-blur-sm rounded-xl hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() => onViewUpdate && onViewUpdate(update.id)}>
+                <CardContent className="p-6">
+                  <div className="flex space-x-4">
+                    {update.images && update.images.length > 0 && (
+                      <div className="flex-shrink-0">
+                        <ImageWithFallback 
+                          src={update.images[0]} 
+                          alt={update.title}
+                          className="w-24 h-24 rounded-lg object-cover border-2 border-white shadow-sm"
+                        />
+                      </div>
+                    )}
                     
-                    <p className="text-gray-600 mb-3 line-clamp-2">{update.preview}</p>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-wrap gap-2">
-                        {update.fundsUsed.map((fund, idx) => (
-                          <Badge key={idx} variant="outline" className="bg-green-50 text-green-700 border-green-200 rounded-full text-xs">
-                            <DollarSign className="w-3 h-3 mr-1" />
-                            {fund.item} • ${fund.amount}
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <h3 className="text-lg text-gray-900">{update.title}</h3>
+                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 rounded-full text-xs">
+                          <Calendar className="w-3 h-3 mr-1" />
+                          {new Date(update.created_at).toLocaleDateString()}
+                        </Badge>
+                        {update.is_milestone && (
+                          <Badge variant="secondary" className="bg-purple-100 text-purple-700 rounded-full text-xs">
+                            <Star className="w-3 h-3 mr-1" />
+                            Milestone
                           </Badge>
-                        ))}
+                        )}
                       </div>
                       
-                      <Button variant="ghost" size="sm" className="rounded-full text-blue-600 hover:bg-blue-50">
-                        <Eye className="w-4 h-4 mr-1" />
-                        View Update
-                        <ArrowRight className="w-4 h-4 ml-1" />
-                      </Button>
+                      <p className="text-gray-600 mb-3 line-clamp-2">{update.content}</p>
+                      
+                      <div className="flex items-center justify-end">
+                        <Button variant="ghost" size="sm" className="rounded-full text-blue-600 hover:bg-blue-50">
+                          <Eye className="w-4 h-4 mr-1" />
+                          View Update
+                          <ArrowRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="border-0 shadow-md bg-white/60 backdrop-blur-sm rounded-xl">
+            <CardContent className="p-8 text-center">
+              <div className="text-gray-500 mb-2">
+                <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Updates Yet</h3>
+              <p className="text-gray-600">This project hasn&apos;t posted any updates yet. Check back later for progress updates!</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

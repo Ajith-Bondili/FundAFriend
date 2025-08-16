@@ -1,6 +1,7 @@
 
 // dataStore.ts - Your TypeScript data store
-import { User, Project, Contribution, DataSchema, CreateUserInput, CreateProjectInput, CreateContributionInput, CreateUpdateInput, CreatorDashboard } from './types';
+import { User, Project, Contribution, Update, DataSchema, CreateUserInput, CreateProjectInput, CreateContributionInput, CreateUpdateInput, CreatorDashboard } from './types';
+import { getPlaceholderImage } from './imageUtils';
 
 class DataStore {
     private data: DataSchema;
@@ -12,7 +13,7 @@ class DataStore {
             id: "user_001",
             email: "john@example.com",
             name: "John Smith",
-            avatar_url: "https://example.com/avatars/john.jpg",
+            avatar_url: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
             created_at: "2024-01-15T10:30:00Z",
             updated_at: "2024-08-10T14:22:00Z"
           },
@@ -20,7 +21,7 @@ class DataStore {
             id: "user_002",
             email: "sarah@example.com",
             name: "Sarah Johnson",
-            avatar_url: "https://example.com/avatars/sarah.jpg",
+            avatar_url: "https://images.unsplash.com/photo-1494790108755-2616b612b5e5?w=150&h=150&fit=crop&crop=face",
             created_at: "2024-02-20T15:45:00Z",
             updated_at: "2024-08-12T09:30:00Z"
           }
@@ -46,7 +47,7 @@ class DataStore {
             created_at: "2024-07-01T09:00:00Z",
             updated_at: "2024-08-15T16:45:00Z",
             slug: "johns-food-truck-dream",
-            cover_image_url: "https://example.com/projects/food-truck-cover.jpg",
+            cover_image_url: "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=600&h=300&fit=crop",
             category: "business",
             visibility: "public"
           }
@@ -73,7 +74,7 @@ class DataStore {
             creator_id: "user_001",
             title: "Found the Perfect Truck!",
             content: "Amazing news everyone! I found a 2019 Ford Transit that's been converted into a food truck.",
-            images: ["https://example.com/updates/truck-exterior.jpg"],
+            images: ["https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=400&h=300&fit=crop"],
             is_milestone: true,
             created_at: "2024-08-10T13:30:00Z",
             updated_at: "2024-08-10T13:30:00Z"
@@ -119,6 +120,70 @@ class DataStore {
     // Find user by ID
     getUserById(id: string): User | undefined {
       return this.data.users.find(user => user.id === id);
+    }
+
+    // Create a new project
+    createProject(input: CreateProjectInput): Project {
+      const projectId = `project_${Date.now()}`;
+      const slug = input.title.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim()
+        .substring(0, 50);
+      
+      const now = new Date().toISOString();
+      
+      const newProject: Project = {
+        id: projectId,
+        creator_id: input.creator_id,
+        title: input.title,
+        description: input.description,
+        goals: input.goals || [],
+        why_funding_helpful: input.why_funding_helpful,
+        funding_goal: input.funding_goal,
+        current_funding: 0,
+        currency: input.currency || 'USD',
+        status: 'active',
+        created_at: now,
+        updated_at: now,
+        slug: slug,
+        cover_image_url: input.cover_image_url || getPlaceholderImage(input.category || 'default'),
+        category: input.category || 'personal',
+        visibility: input.visibility || 'public'
+      };
+      
+      this.data.projects.push(newProject);
+      return newProject;
+    }
+
+    // Get all projects
+    getAllProjects(): Project[] {
+      return this.data.projects;
+    }
+
+    // Get projects by creator
+    getProjectsByCreator(creatorId: string): Project[] {
+      return this.data.projects.filter(project => project.creator_id === creatorId);
+    }
+
+    // Get updates for a project
+    getProjectUpdates(projectId: string): Update[] {
+      return this.data.updates
+        .filter(update => update.project_id === projectId)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+
+    // Get contributions for a project
+    getProjectContributions(projectId: string): Contribution[] {
+      return this.data.contributions.filter(contribution => contribution.project_id === projectId);
+    }
+
+    // Get supporter count for a project
+    getProjectSupporterCount(projectId: string): number {
+      const contributions = this.getProjectContributions(projectId)
+        .filter(contribution => contribution.status === 'completed');
+      return new Set(contributions.map(c => c.supporter_id)).size;
     }
 
     // Generate creator dashboard data
