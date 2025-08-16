@@ -8,13 +8,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 import { Input } from './ui/Input';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Heart, Users, DollarSign, Calendar, Search, Filter, TrendingUp, Star, Clock, CheckCircle } from 'lucide-react';
+//
+import { useRouter } from 'next/navigation';
 
 interface ProjectsOverviewProps {
-  onViewProject: (projectId: string) => void;
-  onViewUpdate: (updateId: string) => void;
+  onViewProject?: (projectId: string) => void;
+  onViewUpdate?: (updateId: string) => void;
 }
 
-// Mock projects data
+// Build projects from data store
 const projects = [
   {
     id: '1',
@@ -139,8 +141,12 @@ const projects = [
 ];
 
 export function ProjectsOverview({ onViewProject, onViewUpdate }: ProjectsOverviewProps) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
+
+  // Temporary: use a known slug from the seeded data store so cards link to a real project page
+  const seededSlug = 'johns-food-truck-dream';
 
   const filteredProjects = projects.filter(project => {
     const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -224,7 +230,9 @@ export function ProjectsOverview({ onViewProject, onViewUpdate }: ProjectsOvervi
             <Card 
               key={project.id} 
               className="border-0 shadow-lg bg-white/60 backdrop-blur-sm rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group"
-              onClick={() => onViewProject(project.id)}
+              onClick={() => {
+                router.push(`/p/${seededSlug}`);
+              }}
             >
               {/* Project Image */}
               <div className="relative h-48 overflow-hidden">
@@ -303,26 +311,17 @@ export function ProjectsOverview({ onViewProject, onViewUpdate }: ProjectsOvervi
 
                 {/* Action Buttons */}
                 <div className="flex items-center space-x-2 pt-2">
-                  {project.isSupported ? (
-                    <div className="flex items-center space-x-2 flex-1">
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 rounded-full text-xs">
-                        <DollarSign className="w-3 h-3 mr-1" />
-                        You contributed ${project.userContribution}
-                      </Badge>
-                    </div>
-                  ) : (
-                    <Button 
-                      size="sm" 
-                      className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white rounded-full flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Handle funding action
-                      }}
-                    >
-                      <Heart className="w-3 h-3 mr-1" />
-                      Fund Project
-                    </Button>
-                  )}
+                  <Button 
+                    size="sm" 
+                    className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white rounded-full flex-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/p/${seededSlug}`);
+                    }}
+                  >
+                    <Heart className="w-3 h-3 mr-1" />
+                    View Project
+                  </Button>
                   
                   <Button variant="outline" size="sm" className="rounded-full border-gray-200">
                     <Users className="w-3 h-3" />
